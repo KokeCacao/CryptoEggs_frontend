@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <script
+      src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"
+      type="application/javascript"
+    ></script>
+    <script>
+      const contractAddress = "<%= contractAddress %>";
+      const contractJson = <%- contractJson %>;
+      let provider;
+      let signer;
+
+      // TODO: there is issue where metamask doesn't popup
+      async function connectToMetamask() {
+        provider = new ethers.providers.Web3Provider(window.ethereum, "any");
+        // Prompt user for account connections
+        await provider.send("eth_requestAccounts", []);
+        signer = provider.getSigner();
+        console.log("Account:", await signer.getAddress());
+      }
+
+      async function getEggs() {
+        if (typeof window.ethereum !== 'undefined') {
+          await connectToMetamask();
+          const contract = new ethers.Contract(contractAddress, contractJson.abi, provider);
+          try {
+            const transaction = await contract.getOwnerEgg(signer.getAddress());
+            console.log(transaction);
+          } catch (error) {
+            console.log(error);
+          }
+        }
+      }
+
+      async function claimEgg() {
+        if (typeof window.ethereum !== 'undefined') {
+          await connectToMetamask();
+          const contract = new ethers.Contract(contractAddress, contractJson.abi, signer);
+          try {
+            const transaction = await contract.claimEgg();
+            await transaction.wait();
+          } catch (error) {
+            if (error.code === 4001) {
+              console.log("User denied signature");
+            } else {
+              console.log(error);
+            }
+          }
+          getEggs();
+        }
+      }
+    </script>
+  </head>
+  <body onload="">
+    <h1><%= title %></h1>
+    <button onclick="connectToMetamask()">connectToMetamask</button>
+    <button onclick="getEggs()">getEggs</button>
+    <button onclick="claimEgg()">claimEgg</button>
+  </body>
+</html>
