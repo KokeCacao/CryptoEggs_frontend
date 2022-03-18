@@ -11,17 +11,15 @@
       const contractJson = <%- contractJson %>;
       let provider;
       let signer;
-
-      // TODO: temp
-      document.getElementById("display").style.opacity = "0.0";
+      let metamask = true;
 
       function displayableHex(a) {
         let str = `${a}`;
         return `${str.substring(0, 4)}...${str.slice(-4)}`;
       }
 
-      // TODO: there is issue where metamask doesn't popup
-      async function connectToMetamask() {
+      async function connectToMetamaskRPC() {
+        // for testing only
         provider = new ethers.providers.Web3Provider(window.ethereum, "any");
         // Prompt user for account connections
         await provider.send("eth_requestAccounts", []);
@@ -31,9 +29,23 @@
         document.getElementById("account").innerHTML = `Your Account: ${acc}`;
       }
 
+      async function connectToRemoteRPC(url="http://yukisa.wifi.local.cmu.edu:8545") {
+        provider = new ethers.providers.JsonRpcProvider(url);
+        // Prompt user for account connections
+        signer = provider.getSigner();
+        const acc = await signer.getAddress();
+        console.log("Account:", acc);
+        document.getElementById("account").innerHTML = `Your Account: ${acc}`;
+      }
+
+      async function connectToRPC(metamask) {
+        if (metamask) connectToMetamaskRPC();
+        else connectToRemoteRPC();
+      }
+
       async function getEggs() {
-        if (typeof window.ethereum !== 'undefined') {
-          await connectToMetamask();
+        if (window.ethereum !== undefined) {
+          if (signer === undefined) await connectToRPC(metamask);
           const contract = new ethers.Contract(contractAddress, contractJson.abi, provider);
           try {
             const transaction = await contract.getOwnerEgg(signer.getAddress());
@@ -55,8 +67,8 @@
       }
 
       async function claimEgg() {
-        if (typeof window.ethereum !== 'undefined') {
-          await connectToMetamask();
+        if (window.ethereum !== undefined) {
+          if (signer === undefined) await connectToRPC(metamask);
           const contract = new ethers.Contract(contractAddress, contractJson.abi, signer);
           try {
             const transaction = await contract.claimEgg();
@@ -84,12 +96,20 @@
       </div>
 
       <div align="center">
-        <img id="display" src="https://lh3.googleusercontent.com/IFXvIHR35yZZH9YwbNnbhLr4X_eQCzVaCH9Xm1ExmJtoixkXVQwVGpcvZFub717WVTrVRyFq1mBe5fVsHKdQrZFayP0B3ox8scXQSu0=w600">
-        <a class="btn" onclick="connectToMetamask()">connectToMetamask</a>
+        <img id="display" style="opacity:0.1" src="https://lh3.googleusercontent.com/IFXvIHR35yZZH9YwbNnbhLr4X_eQCzVaCH9Xm1ExmJtoixkXVQwVGpcvZFub717WVTrVRyFq1mBe5fVsHKdQrZFayP0B3ox8scXQSu0=w600">
+        <!-- <a class="btn" onclick="metamask = false;">setDebugMode</a> -->
+        <a class="btn" onclick="connectToRPC(metamask)">connectToMetamask</a>
         <a class="btn" onclick="getEggs()">getEggs</a>
         <a class="btn" onclick="claimEgg()">claimEgg</a>
         <p id="account">Your are not logged in</p>
         <p id="announcement"></p>
+
+        <!-- <figure>
+          <img id="display" data-zoom-image style="opacity:1" src="./static/tutorial_00.png">
+        </figure> -->
+        <figure>
+          <img id="display" data-zoom-image style="opacity:1" src="./static/tutorial_01.png">
+        </figure>
       </div>
       
     </div>

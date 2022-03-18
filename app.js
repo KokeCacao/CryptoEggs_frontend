@@ -12,6 +12,8 @@ app.set('views', 'views'); // set view directory
 
 app.listen(PORT, () => console.log(`Listening on Port ${PORT}. Go to http://localhost:5000`));
 
+app.use('/static', express.static('static'));
+
 app.get('/', (req, res) => {
   // res.sendFile('./views/index.html', { root: __dirname });
   var parsed = JSON.parse(fs.readFileSync("./artifacts/contracts/Egg.sol/Egg.json"));
