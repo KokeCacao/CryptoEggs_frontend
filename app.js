@@ -10,14 +10,14 @@ const PORT = 5000;
 app.set('view engine', 'ejs'); // set view engine
 app.set('views', 'views'); // set view directory
 
-app.listen(PORT, () => console.log(`Listening on Port ${PORT}`));
+app.listen(PORT, () => console.log(`Listening on Port ${PORT}. Go to http://localhost:5000`));
 
 app.get('/', (req, res) => {
   // res.sendFile('./views/index.html', { root: __dirname });
   var parsed = JSON.parse(fs.readFileSync("./artifacts/contracts/Egg.sol/Egg.json"));
   console.log(parsed);
   res.render('index', {
-    title: 'Test',
+    title: 'Cryptomons',
     contractAddress: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
     contractJson: JSON.stringify(parsed)
   });

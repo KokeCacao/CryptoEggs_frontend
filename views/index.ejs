@@ -5,11 +5,20 @@
       src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"
       type="application/javascript"
     ></script>
+    <link rel="stylesheet" href="https://kokecacao.me/static/./css/BrowneUI.css">
     <script>
       const contractAddress = "<%= contractAddress %>";
       const contractJson = <%- contractJson %>;
       let provider;
       let signer;
+
+      // TODO: temp
+      document.getElementById("display").style.opacity = "0.0";
+
+      function displayableHex(a) {
+        let str = `${a}`;
+        return `${str.substring(0, 4)}...${str.slice(-4)}`;
+      }
 
       // TODO: there is issue where metamask doesn't popup
       async function connectToMetamask() {
@@ -17,7 +26,9 @@
         // Prompt user for account connections
         await provider.send("eth_requestAccounts", []);
         signer = provider.getSigner();
-        console.log("Account:", await signer.getAddress());
+        const acc = await signer.getAddress();
+        console.log("Account:", acc);
+        document.getElementById("account").innerHTML = `Your Account: ${acc}`;
       }
 
       async function getEggs() {
@@ -27,8 +38,18 @@
           try {
             const transaction = await contract.getOwnerEgg(signer.getAddress());
             console.log(transaction);
+            if (transaction.eq(ethers.BigNumber.from(0))) {
+              document.getElementById("display").style.opacity = "0.0";
+              document.getElementById("announcement").innerHTML = `You don't have any egg yet!`;
+            } else {
+              document.getElementById("display").style.opacity = "1.0";
+              document.getElementById("announcement").innerHTML = `Your EggId: ${displayableHex(transaction)}`;
+            }
+            // const decimals = 0;
+            // console.log(ethers.utils.formatUnits(transaction, decimals));
           } catch (error) {
             console.log(error);
+            document.getElementById("announcement").innerHTML = error;
           }
         }
       }
@@ -40,22 +61,37 @@
           try {
             const transaction = await contract.claimEgg();
             await transaction.wait();
+            await getEggs();
+            document.getElementById("announcement").innerHTML = "Claim Egg Successful!";
           } catch (error) {
             if (error.code === 4001) {
               console.log("User denied signature");
+              document.getElementById("announcement").innerHTML = "User denied signature";
             } else {
               console.log(error);
+              document.getElementById("announcement").innerHTML = error;
             }
           }
-          getEggs();
         }
       }
     </script>
   </head>
   <body onload="">
-    <h1><%= title %></h1>
-    <button onclick="connectToMetamask()">connectToMetamask</button>
-    <button onclick="getEggs()">getEggs</button>
-    <button onclick="claimEgg()">claimEgg</button>
+    <div class="container">
+      <div align="center">
+        <h1><%= title %></h1>
+        <p>Breed your own Cryptomon — [2021/03/18, Alpha] <span class="typing">_</span></p>
+      </div>
+
+      <div align="center">
+        <img id="display" src="https://lh3.googleusercontent.com/IFXvIHR35yZZH9YwbNnbhLr4X_eQCzVaCH9Xm1ExmJtoixkXVQwVGpcvZFub717WVTrVRyFq1mBe5fVsHKdQrZFayP0B3ox8scXQSu0=w600">
+        <a class="btn" onclick="connectToMetamask()">connectToMetamask</a>
+        <a class="btn" onclick="getEggs()">getEggs</a>
+        <a class="btn" onclick="claimEgg()">claimEgg</a>
+        <p id="account">Your are not logged in</p>
+        <p id="announcement"></p>
+      </div>
+      
+    </div>
   </body>
 </html>
