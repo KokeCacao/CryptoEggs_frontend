@@ -15,7 +15,7 @@ app.listen(PORT, () => console.log(`Listening on Port ${PORT}. Go to http://loca
 app.use('/static', express.static('static'));
 
 const parsed = JSON.parse(fs.readFileSync("./artifacts/contracts/Egg.sol/Egg.json"));
-const contractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+const contractAddress = "0x79d6BaACa7E76523eD9962a235Ab21f92231947e";
 
 app.get('/', (req, res) => {
   // res.sendFile('./views/index.html', { root: __dirname });
