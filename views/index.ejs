@@ -1,218 +1,450 @@
 <!DOCTYPE html>
 <html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <script
+      src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"
+      type="application/javascript"
+    ></script>
+    <link
+      rel="stylesheet"
+      href="https://kokecacao.me/static/./css/BrowneUI.css"
+    />
+    <script>
+      const contractAddress = "<%= contractAddress %>";
 
-<head>
-  <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js" type="application/javascript"></script>
-  <link rel="stylesheet" href="https://kokecacao.me/static/./css/BrowneUI.css">
-  <script>
-    const contractAddress = "<%= contractAddress %>";
-    const contractJson = <%- contractJson %>;
-    let provider;
-    let signer;
-    let metamask = true;
+      // prettier-ignore
+      const contractJson = <%- contractJson %>;
 
-    function displayableHex(a) {
-      let str = `${a}`;
-      return `${str.substring(0, 4)}...${str.slice(-4)}`;
-    }
+      const abi = contractJson.abi;
+      let provider;
+      let address = 0;
 
-    async function connectToMetamaskRPC() {
-      // for testing only
-      provider = new ethers.providers.Web3Provider(window.ethereum, "any");
-      // Prompt user for account connections
-      await provider.send("eth_requestAccounts", []);
-      signer = provider.getSigner();
-      const acc = await signer.getAddress();
-      console.log("Account:", acc);
-      document.getElementById("account").innerHTML = `Your Account: ${acc}`;
-    }
+      let loaded = false;
 
-    async function connectToRemoteRPC(url = "http://yukisa.wifi.local.cmu.edu:8545") {
-      provider = new ethers.providers.JsonRpcProvider(url);
-      // Prompt user for account connections
-      signer = provider.getSigner();
-      const acc = await signer.getAddress();
-      console.log("Account:", acc);
-      document.getElementById("account").innerHTML = `Your Account: ${acc}`;
-    }
-
-    async function connectToRPC(metamask) {
-      if (metamask) connectToMetamaskRPC();
-      else connectToRemoteRPC();
-    }
-
-    async function getEggs() {
-      if (window.ethereum !== undefined) {
-        if (signer === undefined) await connectToRPC(metamask);
-        const contract = new ethers.Contract(contractAddress, contractJson.abi, provider);
-        try {
-          const transaction = await contract.getOwnerEgg(signer.getAddress());
-          console.log(transaction);
-          if (transaction.eq(ethers.BigNumber.from(0))) {
-            document.getElementById("display").style.opacity = "0.0";
-            document.getElementById("announcement").innerHTML = `You don't have any egg yet!`;
-          } else {
-            document.getElementById("display").style.opacity = "1.0";
-            document.getElementById("announcement").innerHTML = `Your EggId: ${displayableHex(transaction)}`;
-          }
-          // const decimals = 0;
-          // console.log(ethers.utils.formatUnits(transaction, decimals));
-        } catch (error) {
-          console.log(error);
-          document.getElementById("announcement").innerHTML = error;
-        }
+      function displayableHex(a) {
+        let str = `${a}`;
+        return `${str.substring(0, 4)}...${str.slice(-4)}`;
       }
-    }
 
-    async function claimEgg() {
-      if (window.ethereum !== undefined) {
-        if (signer === undefined) await connectToRPC(metamask);
-        const contract = new ethers.Contract(contractAddress, contractJson.abi, signer);
-        try {
-          const transaction = await contract.claimEgg();
-          await transaction.wait();
-          await getEggs();
-          document.getElementById("announcement").innerHTML = "Claim Egg Successful!";
-        } catch (error) {
-          if (error.code === 4001) {
-            console.log("User denied signature");
-            document.getElementById("announcement").innerHTML = "User denied signature";
-          } else {
-            console.log(error);
-            document.getElementById("announcement").innerHTML = error;
-          }
-        }
+      function time() {
+        const now = new Date();
+        const utcMilllisecondsSinceEpoch = now.getTime();
+        const utcSecondsSinceEpoch = Math.round(utcMilllisecondsSinceEpoch / 1000);
+        return utcSecondsSinceEpoch;
       }
-    }
-  </script>
-</head>
 
-<body onload="">
-  <div class="container">
-    <div align="center">
-      <h1>
-        <%= title %>
-      </h1>
-      <p>Breed your own Cryptomon — [2021/03/18, Alpha] <span class="typing">_</span></p>
+      const cyrb53 = function(str, seed = 0) {
+        let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
+        for (let i = 0, ch; i < str.length; i++) {
+            ch = str.charCodeAt(i);
+            h1 = Math.imul(h1 ^ ch, 2654435761);
+            h2 = Math.imul(h2 ^ ch, 1597334677);
+        }
+        h1 = Math.imul(h1 ^ (h1>>>16), 2246822507) ^ Math.imul(h2 ^ (h2>>>13), 3266489909);
+        h2 = Math.imul(h2 ^ (h2>>>16), 2246822507) ^ Math.imul(h1 ^ (h1>>>13), 3266489909);
+        return 4294967296 * (2097151 & h2) + (h1>>>0);
+      };
+
+      function reloadInventory() {
+        setTimeout(() => {
+          const inventory = document.getElementById('inventory');
+          inventory.innerHTML = '';
+          CryptoEggsGetEgg(address, () => {
+            console.log("Loading Inventory Success");
+          }, () => {});
+        }, 1000 * 1); // wait for 1 second
+      }
+
+      function CryptoEggsOnLoad() {
+        // wait for ethers.js to load
+        if (typeof ethers === "undefined") {
+          console.log("ethers.js undefined, keep trying...");
+          setTimeout(onLoad2CH3, 10);
+          return;
+        }
+        if (loaded) return;
+        loaded = true;
+        console.log("ethers.js loaded");
+        // load Web3
+        if (provider === undefined) provider = new ethers.providers.Web3Provider(window.ethereum, "any");
+        // load account
+        CyrptoEggsConnectAccount(() => {
+          CryptoEggsGetEgg(address, () => {
+            console.log("Loading Inventory Success");
+          }, () => {});
+        }, () => console.log("cannot load account"));
+      }
+
+      function claimEgg() {
+        return CryptoEggsClaimEgg(() => {
+          console.log("claim success");
+          reloadInventory();
+        }, () => {
+          console.log("claim failed");
+        })
+      }
+
+      function CryptoEggsClaimEgg(successCallback, failureCallback) {
+        // Connect to Metamask
+        (provider.send("eth_requestAccounts", [])).then((accounts) => {
+          console.log(`Accounts: ${accounts}; Selecting the first account...`);
+          (provider.getBalance(accounts[0])).then((balance) => {
+            console.log(`Accounts: ${accounts[0]}; Balance: ${balance}`);
+            if (balance == 0) {
+              console.log("You need to have balance to use this extension.")
+              // TODO: play mode
+              failureCallback();
+              return;
+            }
+
+            // Initialize Contract
+            const contract = new ethers.Contract(contractAddress, abi, provider.getSigner());
+            contract.claimEgg().then((transaction) => {
+              console.log(`Transaction sent, waiting for confirmation...`);
+              transaction.wait(1).then((confirm) => {
+                console.log(confirm);
+                console.log(`Transaction Confirmed!`);
+              });
+              successCallback();
+            }, (errno) => {
+              console.log(`Error ${errno.code}: ${errno.message}`);
+              failureCallback();
+            });
+
+          });
+
+        }, (errno) => {
+          console.log(`Error ${errno.code}: ${errno.message}`);
+          failureCallback();
+        });
+      }
+
+
+      function CryptoEggsKillEgg(id, successCallback, failureCallback) {
+        // Connect to Metamask
+        (provider.send("eth_requestAccounts", [])).then((accounts) => {
+          console.log(`Accounts: ${accounts}; Selecting the first account...`);
+          (provider.getBalance(accounts[0])).then((balance) => {
+            console.log(`Accounts: ${accounts[0]}; Balance: ${balance}`);
+            if (balance == 0) {
+              console.log("You need to have balance to use this extension.")
+              // TODO: play mode
+              failureCallback();
+              return;
+            }
+
+            // Initialize Contract
+            const contract = new ethers.Contract(contractAddress, abi, provider.getSigner());
+            contract.kill(id).then((transaction) => {
+              console.log(`Transaction sent, waiting for confirmation...`);
+              transaction.wait(1).then((confirm) => {
+                console.log(confirm);
+                console.log(`Transaction Confirmed!`);
+              });
+              successCallback();
+            }, (errno) => {
+              console.log(`Error ${errno.code}: ${errno.message}`);
+              failureCallback();
+            });
+
+          });
+
+        }, (errno) => {
+          console.log(`Error ${errno.code}: ${errno.message}`);
+          failureCallback();
+        });
+      }
+
+
+      function CryptoEggsFreezeEgg(id, successCallback, failureCallback) {
+        // Connect to Metamask
+        (provider.send("eth_requestAccounts", [])).then((accounts) => {
+          console.log(`Accounts: ${accounts}; Selecting the first account...`);
+          (provider.getBalance(accounts[0])).then((balance) => {
+            console.log(`Accounts: ${accounts[0]}; Balance: ${balance}`);
+            if (balance == 0) {
+              console.log("You need to have balance to use this extension.")
+              // TODO: play mode
+              failureCallback();
+              return;
+            }
+
+            // Initialize Contract
+            const contract = new ethers.Contract(contractAddress, abi, provider.getSigner());
+            contract.freeze(id).then((transaction) => {
+              console.log(`Transaction sent, waiting for confirmation...`);
+              transaction.wait(1).then((confirm) => {
+                console.log(confirm);
+                console.log(`Transaction Confirmed!`);
+              });
+              successCallback();
+            }, (errno) => {
+              console.log(`Error ${errno.code}: ${errno.message}`);
+              failureCallback();
+            });
+
+          });
+
+        }, (errno) => {
+          console.log(`Error ${errno.code}: ${errno.message}`);
+          failureCallback();
+        });
+      }
+
+      function kill(id) {
+        CryptoEggsKillEgg(id, () => {
+          console.log(`You killed your egg: ${id}`);
+          reloadInventory();
+        }, () => {
+          console.log(`You failed to kill your egg: ${id}`);
+        });
+      }
+
+      function freeze(id) {
+        CryptoEggsFreezeEgg(id, () => {
+          console.log(`You freezed your egg: ${id}`);
+          reloadInventory();
+        }, () => {
+          console.log(`You failed to freeze your egg: ${id}`);
+        });
+      }
+
+      function CyrptoEggsConnectAccount(successCallback, failureCallback) {
+        (provider.send("eth_requestAccounts", [])).then((accounts) => {
+          console.log(`Accounts: ${accounts}; Selecting the first account ${accounts[0]}`);
+          address = accounts[0];
+          successCallback();
+        }, (errno) => {
+          console.log(`Error ${errno.code}: ${errno.message}`);
+          failureCallback();
+        });
+      }
+
+      function CryptoEggsGetEgg(address, successCallback, failureCallback) {
+        if (address == 0) {
+          console.log(`Invalid Address = 0x00`);
+          failureCallback();
+          return;
+        }
+        console.log(`Loading Your Inventory for ${address}`);
+          const contract = new ethers.Contract(contractAddress, abi, provider);
+          contract.ownerCryptomonCount(address).then((eggCount) => {
+            console.log(`You have ${eggCount} many cryptomons`);
+            if (eggCount > 0) {
+              let list = document.getElementById('inventoryhead'); 
+              list.setAttribute('style', 'visibility: visible;')
+              for (let i = 0; i < eggCount; i++) {
+                contract.ownerToCryptomons(address, i).then((eggId) => {
+                  contract.eggToEggInstance(eggId).then((eggInstance) => {
+                  console.log(`Adding Egg to Inventory: ${eggInstance.id}`);
+                  console.log(eggInstance);
+                  let adult = eggInstance.frozenTime > 0 ? (eggInstance.hatchTime < eggInstance.frozenTime) : (time() > eggInstance.hatchTime);
+                  let type = adult ? 'adult' : 'egg';
+                  addRow(eggInstance.id, eggInstance.name, type, eggInstance.frozenTime > 0, !eggInstance.alive, getImg(type, `${eggInstance.id}`), '', `./lineage/${eggId}`, `./breed/${eggId}`, `kill("${eggId}")`, `freeze("${eggId}")`);
+                  })
+                }, (errno) => {
+                  console.log(`Error ${errno.code}: ${errno.message}`);
+                  failureCallback();
+                });
+              }
+            } else {
+              let list = document.getElementById('inventoryhead'); 
+              list.setAttribute('style', 'visibility: hidden;')
+            }
+            successCallback();
+          }, (errno) => {
+              console.log(`Error ${errno.code}: ${errno.message}`);
+              failureCallback();
+            }
+          );
+      }
+
+      function addRow(dna, name, type, frozen, dead, imgUrl, dnaUrl, lineageUrl, breedUrl, killFunction, freezeFunction) {
+        let list = document.getElementById('inventory'); 
+        list.appendChild(getRow(displayableHex(dna), name, type, frozen, dead, imgUrl, dnaUrl, lineageUrl, breedUrl, killFunction, freezeFunction));
+      }
+
+      function dnaToId(dna, mod=256) {
+        return cyrb53(dna) % mod;
+      }
+
+      function getEggImg(dna) {
+        return `${window.location.origin}/static/eggs/${dnaToId(dna)}.png`;
+      }
+
+      function getMonImg(dna) {
+        return `${window.location.origin}/static/mons/${dnaToId(dna)}.png`;
+      }
+
+      function getImg(type, dna) {
+        if (type == 'egg') return getEggImg(dna);
+        else return getMonImg(dna);
+      }
+
+      function getRow(dna, name, type, frozen, dead, imgUrl, dnaUrl, lineageUrl, breedUrl, killFunction, freezeFunction) {
+        let tr = document.createElement("tr");
+
+        let td_img = document.createElement("td");
+          let a_img = document.createElement('a');
+          a_img.setAttribute('href', "");
+            let td_a_img = document.createElement('img');
+            td_a_img.src = imgUrl;
+            td_a_img.title = type;
+            a_img.appendChild(td_a_img);
+          td_img.appendChild(a_img);
+
+        let td_dna = document.createElement("td");
+        let a_dna = document.createElement('a');
+        a_dna.setAttribute('href', dnaUrl);
+        a_dna.appendChild(document.createTextNode(dna));
+        td_dna.appendChild(a_dna);
+
+        let td_name = document.createElement("td");
+        td_name.innerHTML = `${type}${frozen ? '(❄)' : (dead ? '(💀)' : '')}`;
+
+        let td_lineage = document.createElement("td");
+        let a_lineage = document.createElement('a');
+        a_lineage.setAttribute('class', "btn");
+        a_lineage.setAttribute('href', lineageUrl);
+        a_lineage.appendChild(document.createTextNode('View lineage'));
+        td_lineage.appendChild(a_lineage);
+
+        let td_breed = document.createElement("td");
+        let a_breed = document.createElement('a');
+        a_breed.setAttribute('class', "btn");
+        a_breed.setAttribute('href', breedUrl);
+        a_breed.appendChild(document.createTextNode('Breed'));
+        td_breed.appendChild(a_breed);
+
+        let td_kill = document.createElement("td");
+        let a_kill = document.createElement('a');
+        a_kill.setAttribute('class', "btn");
+        a_kill.setAttribute('onclick', killFunction);
+        a_kill.appendChild(document.createTextNode('Kill'));
+        td_kill.appendChild(a_kill);
+
+        let td_freeze = document.createElement("td");
+        let a_freeze = document.createElement('a');
+        a_freeze.setAttribute('class', "btn");
+        a_freeze.setAttribute('onclick', freezeFunction);
+        a_freeze.appendChild(document.createTextNode('Freeze'));
+        td_freeze.appendChild(a_freeze);
+
+        tr.appendChild(td_img);
+        tr.appendChild(td_dna);
+        tr.appendChild(td_name);
+        tr.appendChild(td_lineage);
+        tr.appendChild(td_breed);
+        tr.appendChild(td_kill);
+        tr.appendChild(td_freeze);
+        return tr;
+      }
+
+      // function addArrayToList(root, array) {
+      //   let ul = document.createElement('ul');
+      //   let li;
+      //   root.appendChild(ul);
+      //   array.forEach((item) => {
+      //     if (Array.isArray(item)) {
+      //       addArrayToList(li, item);
+      //       return;
+      //     };
+      //     li = document.createElement('li');
+      //     li.appendChild(document.createTextNode(item));
+      //     ul.appendChild(li);
+      //   });
+      // }
+      CryptoEggsOnLoad();
+    </script>
+  </head>
+
+  <body onload="">
+    <div class="container">
+      <div align="center">
+        <h1><%= title %></h1>
+        <p>
+          Breed your own Cryptomon — [2021/03/18, First-Release]
+          <span class="typing">_</span>
+        </p>
+      </div>
+
+      <div align="center">
+        <!-- <img
+          id="display"
+          style="opacity: 0.1"
+          src="./static/cryptoegg.png"
+          width="256"
+          height="256"
+          style="-ms-interpolation-mode: nearest-neighbor; image-rendering: crisp-edges; image-rendering: pixelated;"
+        /> -->
+        <!-- <a class="btn" onclick="metamask = false;">setDebugMode</a> -->
+      </div>
+
+      <h3>
+        You encountered the following eggs as you walk into the forest. Pick one
+        of them!
+      </h3>
+      <div class="floatbox" style="justify-content: center">
+        <section class="one-third">
+          <div align="center">
+            <a onclick="claimEgg()"
+              ><img
+                id="display"
+                style="opacity: 1; cursor: pointer"
+                src="./static/cryptoegg.png"
+            /></a>
+            <p>Some description</p>
+          </div>
+        </section>
+        <section class="one-third">
+          <div align="center">
+            <a onclick="claimEgg()"
+              ><img
+                id="display"
+                style="opacity: 1; cursor: pointer"
+                src="./static/cryptoegg.png"
+            /></a>
+            <p>Some description</p>
+          </div>
+        </section>
+        <section class="one-third">
+          <div align="center">
+            <a onclick="claimEgg()"
+              ><img
+                id="display"
+                style="opacity: 1; cursor: pointer"
+                src="./static/cryptoegg.png"
+            /></a>
+            <p>Some description</p>
+          </div>
+        </section>
+      </div>
+
+      <h4>
+        After one minute, they will hatch. And you can breed them.
+      </h4>
+      <div align="center">
+        <a class="btn" href="https://kokecacao.me/page/Post/CryptoEggs.md"
+          >Here is a tutorial on how to play this game</a>
+      </div>
+      <br>
+
+      <table style="width: 100%">
+        <thead id="inventoryhead">
+          <tr>
+            <th>Inventory</th>
+            <th>DNA</th>
+            <th>Type</th>
+            <th>Lineage</th>
+            <th>Breed</th>
+            <th>Kill</th>
+            <th>Freeze</th>
+          </tr>
+        </thead>
+        <tbody id="inventory">
+        </tbody>
+      </table>
     </div>
-
-    <div align="center">
-      <img id="display" style="opacity:0.1"
-        src="https://lh3.googleusercontent.com/IFXvIHR35yZZH9YwbNnbhLr4X_eQCzVaCH9Xm1ExmJtoixkXVQwVGpcvZFub717WVTrVRyFq1mBe5fVsHKdQrZFayP0B3ox8scXQSu0=w600">
-      <!-- <a class="btn" onclick="metamask = false;">setDebugMode</a> -->
-    </div>
-    <div align="center">
-      <a class="btn" onclick="connectToRPC(metamask)">connectToMetamask</a>
-      <a class="btn" onclick="getEggs()">getEggs</a>
-      <a class="btn" onclick="claimEgg()">claimEgg</a>
-    </div>
-    <div align="center">
-      <p id="account">Your are not logged in</p>
-      <p id="announcement"></p>
-
-      <a href="https://kokecacao.me/page/Post/CryptoEggs.md">Here is a tutorial on how to play this game</a>
-      <p>
-        Account #1: 0x70997970c51812dc3a010c7d01b50e0d17dc79c8 (10000 ETH)<br>
-        Private Key: 0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
-      </p>
-
-      <p>
-        Account #1: 0x70997970c51812dc3a010c7d01b50e0d17dc79c8 (10000 ETH)<br>
-        Private Key: 0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
-      </p>
-
-      <p>
-        Account #2: 0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc (10000 ETH)<br>
-        Private Key: 0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a
-      </p>
-
-      <p>
-        Account #3: 0x90f79bf6eb2c4f870365e785982e1f101e93b906 (10000 ETH)<br>
-        Private Key: 0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6
-      </p>
-
-      <p>
-        Account #4: 0x15d34aaf54267db7d7c367839aaf71a00a2c6a65 (10000 ETH)<br>
-        Private Key: 0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a
-      </p>
-
-      <p>
-        Account #5: 0x9965507d1a55bcc2695c58ba16fb37d819b0a4dc (10000 ETH)<br>
-        Private Key: 0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba
-      </p>
-
-      <p>
-        Account #6: 0x976ea74026e726554db657fa54763abd0c3a0aa9 (10000 ETH)<br>
-        Private Key: 0x92db14e403b83dfe3df233f83dfa3a0d7096f21ca9b0d6d6b8d88b2b4ec1564e
-      </p>
-
-      <p>
-        Account #7: 0x14dc79964da2c08b23698b3d3cc7ca32193d9955 (10000 ETH)<br>
-        Private Key: 0x4bbbf85ce3377467afe5d46f804f221813b2bb87f24d81f60f1fcdbf7cbf4356
-      </p>
-
-      <p>
-        Account #8: 0x23618e81e3f5cdf7f54c3d65f7fbc0abf5b21e8f (10000 ETH)<br>
-        Private Key: 0xdbda1821b80551c9d65939329250298aa3472ba22feea921c0cf5d620ea67b97
-      </p>
-
-      <p>
-        Account #9: 0xa0ee7a142d267c1f36714e4a8f75612f20a79720 (10000 ETH)<br>
-        Private Key: 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6
-      </p>
-
-      <p>
-        Account #10: 0xbcd4042de499d14e55001ccbb24a551f3b954096 (10000 ETH)<br>
-        Private Key: 0xf214f2b2cd398c806f84e317254e0f0b801d0643303237d97a22a48e01628897
-      </p>
-
-      <p>
-        Account #11: 0x71be63f3384f5fb98995898a86b02fb2426c5788 (10000 ETH)<br>
-        Private Key: 0x701b615bbdfb9de65240bc28bd21bbc0d996645a3dd57e7b12bc2bdf6f192c82
-      </p>
-
-      <p>
-        Account #12: 0xfabb0ac9d68b0b445fb7357272ff202c5651694a (10000 ETH)<br>
-        Private Key: 0xa267530f49f8280200edf313ee7af6b827f2a8bce2897751d06a843f644967b1
-      </p>
-
-      <p>
-        Account #13: 0x1cbd3b2770909d4e10f157cabc84c7264073c9ec (10000 ETH)<br>
-        Private Key: 0x47c99abed3324a2707c28affff1267e45918ec8c3f20b8aa892e8b065d2942dd
-      </p>
-
-      <p>
-        Account #14: 0xdf3e18d64bc6a983f673ab319ccae4f1a57c7097 (10000 ETH)<br>
-        Private Key: 0xc526ee95bf44d8fc405a158bb884d9d1238d99f0612e9f33d006bb0789009aaa
-      </p>
-
-      <p>
-        Account #15: 0xcd3b766ccdd6ae721141f452c550ca635964ce71 (10000 ETH)<br>
-        Private Key: 0x8166f546bab6da521a8369cab06c5d2b9e46670292d85c875ee9ec20e84ffb61
-      </p>
-
-      <p>
-        Account #16: 0x2546bcd3c84621e976d8185a91a922ae77ecec30 (10000 ETH)<br>
-        Private Key: 0xea6c44ac03bff858b476bba40716402b03e41b8e97e276d1baec7c37d42484a0
-      </p>
-
-      <p>
-        Account #17: 0xbda5747bfd65f08deb54cb465eb87d40e51b197e (10000 ETH)<br>
-        Private Key: 0x689af8efa8c651a91ad287602527f3af2fe9f6501a7ac4b061667b5a93e037fd
-      </p>
-
-      <p>
-        Account #18: 0xdd2fd4581271e230360230f9337d5c0430bf44c0 (10000 ETH)<br>
-        Private Key: 0xde9be858da4a475276426320d5e9262ecfc3ba460bfac56360bfa6c4c28b4ee0
-      </p>
-
-      <p>
-        Account #19: 0x8626f6940e2eb28930efb4cef49b2d1f2c9c1199 (10000 ETH)<br>
-        Private Key: 0xdf57089febbacf7ba0bc227dafbffa9fc08a93fdc68e1e42411a14efcf23656e
-      </p>
-    </div>
-
-  </div>
-</body>
-
+  </body>
 </html>

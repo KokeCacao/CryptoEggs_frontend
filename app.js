@@ -14,17 +14,43 @@ app.listen(PORT, () => console.log(`Listening on Port ${PORT}. Go to http://loca
 
 app.use('/static', express.static('static'));
 
+const parsed = JSON.parse(fs.readFileSync("./artifacts/contracts/Egg.sol/Egg.json"));
+const contractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+
 app.get('/', (req, res) => {
   // res.sendFile('./views/index.html', { root: __dirname });
-  var parsed = JSON.parse(fs.readFileSync("./artifacts/contracts/Egg.sol/Egg.json"));
-  console.log(parsed);
+  // console.log(parsed);
+  res.set({ 'content-type': 'text/html; charset=utf-8' });
   res.render('index', {
     title: 'Cryptomons',
-    contractAddress: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+    contractAddress: contractAddress,
     contractJson: JSON.stringify(parsed)
   });
 });
 
+app.get('/lineage/:egg', (req,res) => {
+  const egg = req.params['egg'];
+  res.set({ 'content-type': 'text/html; charset=utf-8' });
+  res.render('lineage', {
+    title: 'Cryptomons',
+    contractAddress: contractAddress,
+    contractJson: JSON.stringify(parsed),
+    eggId: egg
+  })
+});
+
+app.get('/breed/:egg', (req,res) => {
+  const egg = req.params['egg'];
+  res.set({ 'content-type': 'text/html; charset=utf-8' });
+  res.render('breed', {
+    title: 'Cryptomons',
+    contractAddress: contractAddress,
+    contractJson: JSON.stringify(parsed),
+    eggId: egg
+  })
+});
+
 app.use((req, res) => {
+  res.set({ 'content-type': 'text/html; charset=utf-8' });
   res.status(404).render('error');
 })
