@@ -22,7 +22,7 @@ app.get('/', (req, res) => {
   // console.log(parsed);
   res.set({ 'content-type': 'text/html; charset=utf-8' });
   res.render('index', {
-    title: 'Cryptomons',
+    title: 'Cryptoeggs',
     contractAddress: contractAddress,
     contractJson: JSON.stringify(parsed)
   });
@@ -32,7 +32,7 @@ app.get('/lineage/:egg', (req,res) => {
   const egg = req.params['egg'];
   res.set({ 'content-type': 'text/html; charset=utf-8' });
   res.render('lineage', {
-    title: 'Cryptomons',
+    title: 'Cryptoeggs',
     contractAddress: contractAddress,
     contractJson: JSON.stringify(parsed),
     eggId: egg
@@ -43,7 +43,7 @@ app.get('/breed/:egg', (req,res) => {
   const egg = req.params['egg'];
   res.set({ 'content-type': 'text/html; charset=utf-8' });
   res.render('breed', {
-    title: 'Cryptomons',
+    title: 'Cryptoeggs',
     contractAddress: contractAddress,
     contractJson: JSON.stringify(parsed),
     eggId: egg
