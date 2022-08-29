@@ -1,5 +1,6 @@
 const express = require('express');
 const { ethers } = require("ethers");
+const favicon = require('serve-favicon');
 const artifacts = require('./artifacts/contracts/Egg.sol/Egg.json');
 const fs = require('fs');
 // const ganache = require("ganache");
@@ -13,6 +14,7 @@ app.set('views', 'views'); // set view directory
 app.listen(PORT, () => console.log(`Listening on Port ${PORT}. Go to http://localhost:5000`));
 
 app.use('/static', express.static('static'));
+app.use(favicon( 'static/favicon.ico'));
 
 const parsed = JSON.parse(fs.readFileSync("./artifacts/contracts/Egg.sol/Egg.json"));
 const contractAddress = "0x79d6BaACa7E76523eD9962a235Ab21f92231947e";
@@ -54,3 +56,4 @@ app.use((req, res) => {
   res.set({ 'content-type': 'text/html; charset=utf-8' });
   res.status(404).render('error');
 })
+
